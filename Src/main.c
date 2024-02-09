@@ -22,7 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "delay.h"
-#include "string.h"
+#include "test.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,11 +32,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-GPIO_TypeDef* GPIO_TypeList[] = {GPIOA,GPIOB,GPIOC,GPIOD,GPIOE};
-
-const uint16_t PLeds[3][2] = {{3,PWR1_Pin},{1,PWR2_Pin},{1,PWR3_Pin}};
-const uint16_t RLeds[9][2] = {{1,LR1_Pin},{1,LR2_Pin},{1,LR3_Pin},{3,LR4_Pin},{3,LR5_Pin},{3,LR6_Pin},{3,LR7_Pin},{3,LR8_Pin},{3,LR9_Pin}};
-const uint16_t GLeds[9][2] = {{0,LG1_Pin},{0,LG2_Pin},{0,LG3_Pin},{0,LG4_Pin},{1,LG5_Pin},{1,LG6_Pin},{1,LG7_Pin},{1,LG8_Pin},{1,LG9_Pin}};
 
 
 /* USER CODE END PD */
@@ -71,37 +66,6 @@ static void MX_USART3_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-
-//  ledtype:    0:PLeds    1:RLeds    2:GLeds
-void SetLed(uint8_t ledtype, uint8_t ledidx, uint8_t status)
-{
-	switch (ledtype)
-	{
-		case 0:
-		{
-			if(ledidx >= 3) return;
-			HAL_GPIO_WritePin(GPIO_TypeList[PLeds[ledidx][0]], PLeds[ledidx][1], status > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
-		}break;
-		case 1:
-		{
-			if(ledidx >= 9) return;
-			HAL_GPIO_WritePin(GPIO_TypeList[RLeds[ledidx][0]], RLeds[ledidx][1], status > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
-		}break;
-		case 2:
-		{
-			if(ledidx >= 9) return;
-			HAL_GPIO_WritePin(GPIO_TypeList[GLeds[ledidx][0]], GLeds[ledidx][1], status > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
-		}break;
-	}
-}
-
-void  Uart5SendString(char* str)
-{
-  HAL_GPIO_WritePin(RTS5S_GPIO_Port, RTS5S_Pin, GPIO_PIN_SET);
-	HAL_UART_Transmit(&huart5,(uint8_t*)str,strlen(str),50);
-  HAL_GPIO_WritePin(RTS5S_GPIO_Port, RTS5S_Pin, GPIO_PIN_RESET);
-}
 
 
 /* USER CODE END 0 */
@@ -140,7 +104,6 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-  uint8_t ct0 = 0,ct1 = 0;
 
   /* USER CODE END 2 */
 
@@ -151,23 +114,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	SetLed(0,ct0,0);
-	ct0++;
-	if(ct0 >= 3) ct0 = 0;
-	SetLed(0,ct0,1);
-
-
-	//	SetLed(1,ct1,1);
-	//	SetLed(1,ct1,1);
-	SetLed(1,ct1,0);
-	SetLed(2,8-ct1,0);
-	ct1++;
-	if(ct1 >= 9) ct1 = 0;
-	SetLed(1,ct1,1);
-	SetLed(2,8-ct1,1);
-
-	delay_ms(100);
-	Uart5SendString("Hello World\r\n");
+	  test1();
   }
   /* USER CODE END 3 */
 }
