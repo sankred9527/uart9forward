@@ -22,5 +22,5 @@ void test1(void)
 	SetLed(2,8-ct1,1);
 
 	delay_ms(100);
-	Uart5SendString("Hello World\r\n");
+	//uart_up_print("Hello World\r\n");
 }
