@@ -1,57 +1,10 @@
 #include "uart_utils.h"
 #include "main.h"
-#include <string.h>
-#include <stdint.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include "stm32f1xx_hal.h"
-#include "stm32f1xx.h"
 
-
-typedef struct  {
-    GPIO_TypeDef *gpiox;
-    uint16_t gpio_pin;
-} gpio_combine_t;
-
-typedef struct __uart_contex {
-    UART_HandleTypeDef uart_instance;
-    volatile bool tx_completed; 
-    volatile bool rx_completed; 
-    IRQn_Type irqt;
-    int current_channel;
-    int index;
-
-    /*
-     usart1-3 通过端口复用来配置, 需要定义2组不同的gpio
-    */
-    gpio_combine_t tx_gpio[2]; 
-    gpio_combine_t rx_gpio[2];
-
-    gpio_combine_t rts_gpio[2];
-} uart_contex_t;
-
-static uart_contex_t gl_all_uarts[5];
-
+uart_contex_t gl_all_uarts[5];
 
 //#define MAX_UART_CHANNEL (2)
 static int gl_current_channel = 0;
-
-
-#define HANDLE_UART5 (gl_all_uarts + 4)
-
-// void Uart5SendString(char* str)
-// {
-//     HAL_GPIO_WritePin(RTS5S_GPIO_Port, RTS5S_Pin, GPIO_PIN_SET);
-//     HAL_UART_Transmit(&huart5, (uint8_t*)str,strlen(str), 50);
-//     HAL_GPIO_WritePin(RTS5S_GPIO_Port, RTS5S_Pin, GPIO_PIN_RESET);
-// }
-
-// void Uart5RecvString(char* str)
-// {
-//     char data[128];    
-//     HAL_UART_Receive(&huart5, data, 128, 100);    
-// }
 
 
 static void my_MspDeInitCallback(UART_HandleTypeDef *huart)
@@ -115,7 +68,10 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
             break;
         case 3:
             __HAL_RCC_UART4_CLK_ENABLE();
-            break;                                
+            break;
+        case 4:
+            __HAL_RCC_UART5_CLK_ENABLE();
+            break;
         default :
             return;
     }
@@ -123,18 +79,21 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
     
     /**USART1 GPIO Configuration */    
 
-    uint16_t tx_pin = ucontext->tx_gpio[channel].gpio_pin;
-    GPIO_TypeDef *tx_group = ucontext->tx_gpio[channel].gpiox;
-    uint16_t rx_pin = ucontext->rx_gpio[channel].gpio_pin;
-    GPIO_TypeDef *rx_group = ucontext->rx_gpio[channel].gpiox;
-    uint16_t rts_pin = ucontext->rts_gpio[channel].gpio_pin;
-    GPIO_TypeDef *rts_group = ucontext->rts_gpio[channel].gpiox;
+
     
     switch(ucontext->index)
     {
         case 0:
         case 1:
         case 2:
+        {
+            uint16_t tx_pin = ucontext->tx_gpio[channel].gpio_pin;
+            GPIO_TypeDef *tx_group = ucontext->tx_gpio[channel].gpiox;
+            uint16_t rx_pin = ucontext->rx_gpio[channel].gpio_pin;
+            GPIO_TypeDef *rx_group = ucontext->rx_gpio[channel].gpiox;
+            uint16_t rts_pin = ucontext->rts_gpio[channel].gpio_pin;
+            GPIO_TypeDef *rts_group = ucontext->rts_gpio[channel].gpiox;
+
             GPIO_InitStruct.Pin = tx_pin;
             GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
             GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
@@ -149,44 +108,60 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
             GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
             GPIO_InitStruct.Pull = GPIO_NOPULL;
             HAL_GPIO_Init(rx_group, &GPIO_InitStruct);    
+      
+            switch(ucontext->index)
+            {
+            case 0:
+                if (channel==0) __HAL_AFIO_REMAP_USART1_DISABLE(); else __HAL_AFIO_REMAP_USART1_ENABLE();
+                break;
+            case 1:
+                if (channel==0) __HAL_AFIO_REMAP_USART2_DISABLE(); else __HAL_AFIO_REMAP_USART2_ENABLE();
+                break;
+            case 2:
+                if (channel==0) __HAL_AFIO_REMAP_USART3_DISABLE(); else __HAL_AFIO_REMAP_USART3_ENABLE();
+                break;
+            }
+        }
             break;
         case 3:
             //uart4 只有1组 tx/rx gpio，不需要切换
+        
+            GPIO_InitStruct.Pin = ucontext->tx_gpio[0].gpio_pin;
+            GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+            GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+            HAL_GPIO_Init(ucontext->tx_gpio[0].gpiox, &GPIO_InitStruct);
+
+            GPIO_InitStruct.Pin = ucontext->rx_gpio[0].gpio_pin;
+            GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+            GPIO_InitStruct.Pull = GPIO_NOPULL;
+            HAL_GPIO_Init(ucontext->rx_gpio[0].gpiox, &GPIO_InitStruct);
+
+            for (int n =0; n<2; n++)
             {
-                GPIO_InitStruct.Pin = ucontext->tx_gpio[0].gpio_pin;
+                GPIO_InitStruct.Pin = ucontext->rts_gpio[n].gpio_pin;
                 GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
                 GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-                HAL_GPIO_Init(ucontext->tx_gpio[0].gpiox, &GPIO_InitStruct);
+                HAL_GPIO_Init(ucontext->rts_gpio[n].gpiox, &GPIO_InitStruct);
+            }            
+            break;
+        case 4:
+            GPIO_InitStruct.Pin = ucontext->tx_gpio[0].gpio_pin;
+            GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+            GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+            HAL_GPIO_Init(ucontext->tx_gpio[0].gpiox, &GPIO_InitStruct);
 
-                GPIO_InitStruct.Pin = ucontext->rx_gpio[0].gpio_pin;
-                GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-                GPIO_InitStruct.Pull = GPIO_NOPULL;
-                HAL_GPIO_Init(ucontext->rx_gpio[0].gpiox, &GPIO_InitStruct);
+            GPIO_InitStruct.Pin = ucontext->rx_gpio[0].gpio_pin;
+            GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+            GPIO_InitStruct.Pull = GPIO_NOPULL;
+            HAL_GPIO_Init(ucontext->rx_gpio[0].gpiox, &GPIO_InitStruct);
 
-                for (int n =0; n<2; n++)
-                {
-                    GPIO_InitStruct.Pin = ucontext->rts_gpio[n].gpio_pin;
-                    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-                    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-                    HAL_GPIO_Init(ucontext->rts_gpio[n].gpiox, &GPIO_InitStruct);
-                }
-            }
+            GPIO_InitStruct.Pin = ucontext->rts_gpio[0].gpio_pin;
+            GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+            GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+            HAL_GPIO_Init(ucontext->rts_gpio[0].gpiox, &GPIO_InitStruct);
             break;
         default:
             return;
-    }
-
-    if ( channel == 0 )
-    {
-        __HAL_AFIO_REMAP_USART1_DISABLE();
-        __HAL_AFIO_REMAP_USART2_DISABLE();
-        __HAL_AFIO_REMAP_USART3_DISABLE();
-        //TODO: switch uart4       
-    } else {
-        __HAL_AFIO_REMAP_USART1_ENABLE();
-        __HAL_AFIO_REMAP_USART2_ENABLE();
-        __HAL_AFIO_REMAP_USART3_ENABLE();
-        //TODO: switch uart4
     }
 
     /* USART/UART interrupt Init */
@@ -248,7 +223,7 @@ void uart_app_init(void)
     };
 
     gl_all_uarts[4] = (uart_contex_t) {
-        .uart_instance = huart5,
+        .uart_instance = MAKE_INSTANCE(UART5),
         .irqt = UART5_IRQn,
         .tx_gpio = {{.gpiox = TXD5_GPIO_Port, .gpio_pin = TXD5_Pin}},
         .rx_gpio = {{.gpiox = RXD5_GPIO_Port, .gpio_pin = RXD5_Pin}},
@@ -260,6 +235,12 @@ void uart_app_init(void)
         HAL_UART_RegisterCallback(&(gl_all_uarts+n)->uart_instance,  HAL_UART_MSPINIT_CB_ID, my_MspInitCallback);
         HAL_UART_RegisterCallback(&(gl_all_uarts+n)->uart_instance,  HAL_UART_MSPDEINIT_CB_ID, my_MspDeInitCallback);
         //
+    }
+
+    //单独初始化 uart5
+    if (HAL_UART_Init(&(gl_all_uarts+4)->uart_instance) != HAL_OK)
+    {
+        Error_Handler();
     }
 }
 
@@ -341,8 +322,8 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
     }
     else if ( huart->Instance == UART5 )
     {        
-        HAL_GPIO_WritePin(HANDLE_UART5->rts_gpio[0].gpiox, HANDLE_UART5->rts_gpio[0].gpio_pin, GPIO_PIN_RESET);
-        HANDLE_UART5->tx_completed = true;
+        // HAL_GPIO_WritePin(HANDLE_UART5->rts_gpio[0].gpiox, HANDLE_UART5->rts_gpio[0].gpio_pin, GPIO_PIN_RESET);
+        // HANDLE_UART5->tx_completed = true;
     }
     
 }
