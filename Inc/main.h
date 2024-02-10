@@ -161,11 +161,7 @@ void Error_Handler(void);
 #define PWR3_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-extern UART_HandleTypeDef huart4;
 extern UART_HandleTypeDef huart5;
-extern UART_HandleTypeDef huart1;
-extern UART_HandleTypeDef huart2;
-extern UART_HandleTypeDef huart3;
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
