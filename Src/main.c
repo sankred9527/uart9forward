@@ -386,8 +386,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : TXD3_1_Pin TXD2_1_Pin */
-  GPIO_InitStruct.Pin = TXD3_1_Pin|TXD2_1_Pin;
+  /*Configure GPIO pins : TXD3_1_Pin RTS3_1_Pin RTS2_1_Pin TXD2_1_Pin */
+  GPIO_InitStruct.Pin = TXD3_1_Pin|RTS3_1_Pin|RTS2_1_Pin|TXD2_1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
@@ -441,7 +441,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(RXD1_1_GPIO_Port, &GPIO_InitStruct);
 
   /*Configures the port and pin on which the EVENTOUT Cortex signal will be connected */
-  HAL_GPIOEx_ConfigEventout(AFIO_EVENTOUT_PORT_D, AFIO_EVENTOUT_PIN_8|AFIO_EVENTOUT_PIN_5);
+  HAL_GPIOEx_ConfigEventout(AFIO_EVENTOUT_PORT_D, AFIO_EVENTOUT_PIN_8|AFIO_EVENTOUT_PIN_12|AFIO_EVENTOUT_PIN_4|AFIO_EVENTOUT_PIN_5);
 
   /*Configures the port and pin on which the EVENTOUT Cortex signal will be connected */
   HAL_GPIOEx_ConfigEventout(AFIO_EVENTOUT_PORT_B, AFIO_EVENTOUT_PIN_6);

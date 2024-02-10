@@ -103,6 +103,8 @@ void Error_Handler(void);
 #define LR4_GPIO_Port GPIOD
 #define LR5_Pin GPIO_PIN_11
 #define LR5_GPIO_Port GPIOD
+#define RTS3_1_Pin GPIO_PIN_12
+#define RTS3_1_GPIO_Port GPIOD
 #define LR6_Pin GPIO_PIN_13
 #define LR6_GPIO_Port GPIOD
 #define LR7_Pin GPIO_PIN_14
@@ -137,6 +139,8 @@ void Error_Handler(void);
 #define RXD5_GPIO_Port GPIOD
 #define RTS5S_Pin GPIO_PIN_3
 #define RTS5S_GPIO_Port GPIOD
+#define RTS2_1_Pin GPIO_PIN_4
+#define RTS2_1_GPIO_Port GPIOD
 #define TXD2_1_Pin GPIO_PIN_5
 #define TXD2_1_GPIO_Port GPIOD
 #define RXD2_1_Pin GPIO_PIN_6
