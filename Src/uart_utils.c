@@ -1,11 +1,18 @@
 #include "uart_utils.h"
+#include "mcu_timer.h"
+#include "pt/pt.h"
 #include "main.h"
 
 uart_contex_t gl_all_uarts[5];
 
+#define UART_UP (gl_all_uarts+4)
+
 //#define MAX_UART_CHANNEL (2)
 static int gl_current_channel = 0;
 
+static struct {
+    struct pt pt;
+} gl_test1_pt;
 
 static void my_MspDeInitCallback(UART_HandleTypeDef *huart)
 {
@@ -171,6 +178,8 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
 
 void uart_app_init(void)
 {
+    PT_INIT((struct pt*)&gl_test1_pt);
+
     #define MAKE_INSTANCE(x) {\
         .Instance = x,\
         .Init= {\
@@ -238,7 +247,7 @@ void uart_app_init(void)
     }
 
     //单独初始化 uart5
-    if (HAL_UART_Init(&(gl_all_uarts+4)->uart_instance) != HAL_OK)
+    if (HAL_UART_Init(&UART_UP->uart_instance) != HAL_OK)
     {
         Error_Handler();
     }
@@ -341,7 +350,18 @@ void uart_thread(void)
     }
 }
 
-void uart_test(void)
+char uart_test1_thread(void)
 {
+    static struct pt * pt = (struct pt*)&gl_test1_pt;
+    static struct mcu_timer timer;
     
+    PT_BEGIN(pt);
+    while (1)
+    {
+        timer_set(&timer,1000);
+        PT_WAIT_UNTIL(pt, timer_expired(&timer));
+        uart_send(UART_UP, "hello\r\n", 7);
+        PT_WAIT_UNTIL(pt, UART_UP->tx_completed);
+    }
+    PT_END(pt);
 }

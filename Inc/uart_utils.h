@@ -32,9 +32,12 @@ typedef struct __uart_contex {
     gpio_combine_t rts_gpio[2];
 } uart_contex_t;
 
-void uart_thread(void);
+
 
 extern uart_contex_t gl_all_uarts[5];
 #define UART_GET_HANDLE(n) (gl_all_uarts[n].uart_instance)
+
+char uart_test1_thread(void);
+void uart_thread(void);
 
 #endif

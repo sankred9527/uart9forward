@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "delay.h"
+#include "uart_utils.h"
 #include "test.h"
 /* USER CODE END Includes */
 
@@ -83,7 +83,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  delay_init(32);
+  //delay_init(32);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -99,7 +99,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  test1();
+	  //test1();
+    uart_test1_thread();
   }
   /* USER CODE END 3 */
 }
