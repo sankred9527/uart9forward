@@ -383,8 +383,6 @@ char uart_thread(void)
 {
     static struct pt *pt = (struct pt*)&gl_main_pt;
     static struct mcu_timer timer;
-    static uint8_t data[UART_RX_BUFF_SIZE];
-    static int join_cnt;
     static int channel ;    
     static int to_send_index = -1;
 
@@ -394,7 +392,7 @@ char uart_thread(void)
     PT_BEGIN(pt);
     while(1)
     {
-        uart_recv(UART_UP, data, sizeof(data));
+        uart_recv(UART_UP, UART_UP->rx_buffer, UART_RX_BUFF_SIZE);
         PT_WAIT_UNTIL(pt, UART_UP->rx_completed);
         if ( UART_UP->rx_size == 0 ) 
             continue;
@@ -404,7 +402,7 @@ char uart_thread(void)
         {
             uart_app_init_device_with_channel(channel);
             for (int n = 0; n < 4; n++)
-                uart_send(gl_all_uarts+n, data, UART_UP->rx_size);        
+                uart_send(gl_all_uarts+n, UART_UP->rx_buffer, UART_UP->rx_size);        
             timer_set(&timer,100);        
             PT_WAIT_UNTIL(pt,  TX_FINISH || timer_expired(&timer) );
 
