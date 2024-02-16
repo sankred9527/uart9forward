@@ -2,6 +2,7 @@
 #include "mcu_timer.h"
 #include "pt/pt.h"
 #include "main.h"
+#include "gpio_utils.h"
 
 uart_contex_t gl_all_uarts[5];
 
@@ -79,6 +80,7 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
             __HAL_RCC_UART4_CLK_ENABLE();
             break;
         case 4:
+            SetLed(0,0,1);
             __HAL_RCC_UART5_CLK_ENABLE();
             break;
         default :
@@ -168,6 +170,7 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
             GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
             GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
             HAL_GPIO_Init(ucontext->rts_gpio[0].gpiox, &GPIO_InitStruct);
+
             break;
         default:
             return;
@@ -189,8 +192,9 @@ static void my_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size)
 }
 
 void my_TxCpltCallback(UART_HandleTypeDef *huart)
-{
+{    
     uart_contex_t *ucontex = (uart_contex_t*)huart;
+    
     switch (ucontex->index)
     {
         case 0:
@@ -286,19 +290,23 @@ void uart_app_init(void)
         .index = 4
     };
     
-    for(int n = 0; n < 5; n++) {
-        HAL_UART_RegisterCallback(&UART_GET_HANDLE(n),  HAL_UART_MSPINIT_CB_ID, my_MspInitCallback);
-        HAL_UART_RegisterCallback(&UART_GET_HANDLE(n),  HAL_UART_MSPDEINIT_CB_ID, my_MspDeInitCallback);
-        HAL_UART_RegisterCallback(&UART_GET_HANDLE(n),  HAL_UART_TX_COMPLETE_CB_ID, my_TxCpltCallback);
-        HAL_UART_RegisterRxEventCallback(&UART_GET_HANDLE(n), my_RxEventCallback );        
+    for(int n = 0; n < 5; n++) {        
+        if  ( HAL_OK != HAL_UART_RegisterCallback(&UART_GET_HANDLE(n),  HAL_UART_MSPINIT_CB_ID, my_MspInitCallback) ) {
+        
+        }
+
+        if ( HAL_OK != HAL_UART_RegisterCallback(&UART_GET_HANDLE(n),  HAL_UART_MSPDEINIT_CB_ID, my_MspDeInitCallback) ) {
+
+        }
 
         if ( HAL_UART_Init(&UART_GET_HANDLE(n)) != HAL_OK )
         {
             Error_Handler();
         }
+        
+        HAL_UART_RegisterCallback(&UART_GET_HANDLE(n),  HAL_UART_TX_COMPLETE_CB_ID, my_TxCpltCallback);
+        HAL_UART_RegisterRxEventCallback(&UART_GET_HANDLE(n), my_RxEventCallback );        
     }
-
-    //单独初始化 uart5
 
 }
 
@@ -447,10 +455,23 @@ char uart_test1_thread(void)
     PT_BEGIN(pt);
     while (1)
     {
-        // timer_set(&timer,1000);
-        // PT_WAIT_UNTIL(pt, timer_expired(&timer));
-        // uart_send(UART_UP, "hello\r\n", 7);
-        // PT_WAIT_UNTIL(pt, UART_UP->tx_completed);
+        static uint8_t data[] = "hello\r\n";
+
+        timer_set(&timer,1000);
+        PT_WAIT_UNTIL(pt, timer_expired(&timer));        
+        SetLed(1,8,0);
+
+        SetLed(2,0,1);
+        uart_send(UART_UP, data, sizeof(data));
+        PT_WAIT_UNTIL(pt, UART_UP->tx_completed);
+        SetLed(2,0,0);
+
+        timer_set(&timer,1000);
+        PT_WAIT_UNTIL(pt, timer_expired(&timer));
+        SetLed(1,8,1);    
+        
+        //uart_send(UART_UP, "hello\r\n", 7);
+        //PT_WAIT_UNTIL(pt, UART_UP->tx_completed);
     }
     PT_END(pt);
 }
