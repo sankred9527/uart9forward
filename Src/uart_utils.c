@@ -3,6 +3,7 @@
 #include "pt/pt.h"
 #include "main.h"
 #include "gpio_utils.h"
+#include <stdarg.h>
 
 uart_contex_t gl_all_uarts[5];
 
@@ -15,13 +16,30 @@ static struct {
     struct pt pt;
 } gl_test1_pt;
 
+static struct pt gl_recv_pt;
 static struct pt gl_main_pt;
+
+static void uart_send(uart_contex_t *ucontex, uint8_t *data, uint16_t size);
+
+void mylog(char* format, ...) {
+    va_list args;  // 定义一个变量参数列表
+    static char buffer[128];  // 定义一个缓冲区
+
+    va_start(args, format);
+
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    
+    va_end(args);
+
+    (gl_all_uarts+3)->current_channel = 0;
+    uart_send(gl_all_uarts+3, (uint8_t*)buffer, strlen(buffer));    
+}
 
 static void my_MspDeInitCallback(UART_HandleTypeDef *huart)
 {
     uart_contex_t *ucontext = (uart_contex_t*)huart;
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-    int channel = ucontext->current_channel;
+    //GPIO_InitTypeDef GPIO_InitStruct = {0};
+    //int channel = ucontext->current_channel;
 
     /* Peripheral clock enable */
     switch(ucontext->index)
@@ -79,8 +97,7 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
         case 3:
             __HAL_RCC_UART4_CLK_ENABLE();
             break;
-        case 4:
-            SetLed(0,0,1);
+        case 4:            
             __HAL_RCC_UART5_CLK_ENABLE();
             break;
         default :
@@ -102,18 +119,18 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
             GPIO_TypeDef *tx_group = ucontext->tx_gpio[channel].gpiox;
             uint16_t rx_pin = ucontext->rx_gpio[channel].gpio_pin;
             GPIO_TypeDef *rx_group = ucontext->rx_gpio[channel].gpiox;
-            uint16_t rts_pin = ucontext->rts_gpio[channel].gpio_pin;
-            GPIO_TypeDef *rts_group = ucontext->rts_gpio[channel].gpiox;
+            //uint16_t rts_pin = ucontext->rts_gpio[channel].gpio_pin;
+            //GPIO_TypeDef *rts_group = ucontext->rts_gpio[channel].gpiox;
 
             GPIO_InitStruct.Pin = tx_pin;
             GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
             GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
             HAL_GPIO_Init(tx_group, &GPIO_InitStruct);
 
-            GPIO_InitStruct.Pin = rts_pin;
-            GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-            GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-            HAL_GPIO_Init(rts_group, &GPIO_InitStruct);
+            // GPIO_InitStruct.Pin = rts_pin;
+            // GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+            // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+            // HAL_GPIO_Init(rts_group, &GPIO_InitStruct);
 
             GPIO_InitStruct.Pin = rx_pin;
             GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
@@ -149,10 +166,10 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
 
             for (int n =0; n<2; n++)
             {
-                GPIO_InitStruct.Pin = ucontext->rts_gpio[n].gpio_pin;
-                GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-                GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-                HAL_GPIO_Init(ucontext->rts_gpio[n].gpiox, &GPIO_InitStruct);
+                // GPIO_InitStruct.Pin = ucontext->rts_gpio[n].gpio_pin;
+                // GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+                // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+                // HAL_GPIO_Init(ucontext->rts_gpio[n].gpiox, &GPIO_InitStruct);
             }            
             break;
         case 4:
@@ -166,10 +183,10 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
             GPIO_InitStruct.Pull = GPIO_NOPULL;
             HAL_GPIO_Init(ucontext->rx_gpio[0].gpiox, &GPIO_InitStruct);
 
-            GPIO_InitStruct.Pin = ucontext->rts_gpio[0].gpio_pin;
-            GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-            GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-            HAL_GPIO_Init(ucontext->rts_gpio[0].gpiox, &GPIO_InitStruct);
+            // GPIO_InitStruct.Pin = ucontext->rts_gpio[0].gpio_pin;
+            // GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+            // GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+            // HAL_GPIO_Init(ucontext->rts_gpio[0].gpiox, &GPIO_InitStruct);
 
             break;
         default:
@@ -219,6 +236,7 @@ void uart_app_init(void)
 {
     PT_INIT((struct pt*)&gl_test1_pt);
     PT_INIT(&gl_main_pt);
+    PT_INIT(&gl_recv_pt);
 
     #define MAKE_INSTANCE(x) {\
         .Instance = x,\
@@ -385,6 +403,8 @@ static void uart_recv(uart_contex_t *ucontex, uint8_t *data, uint16_t size)
     HAL_UARTEx_ReceiveToIdle_IT(&ucontex->uart_instance, data, size);
 }
 
+#define TX_FINISH (gl_all_uarts[0].tx_completed && gl_all_uarts[1].tx_completed && gl_all_uarts[2].tx_completed && gl_all_uarts[3].tx_completed)
+#define RX_FINISH (gl_all_uarts[0].rx_completed || gl_all_uarts[1].rx_completed || gl_all_uarts[2].rx_completed || gl_all_uarts[3].rx_completed)
 
 
 char uart_thread(void)
@@ -394,13 +414,10 @@ char uart_thread(void)
     static int channel ;    
     static int to_send_index = -1;
 
-    #define TX_FINISH (gl_all_uarts[0].tx_completed && gl_all_uarts[1].tx_completed && gl_all_uarts[2].tx_completed && gl_all_uarts[3].tx_completed)
-    #define RX_FINISH (gl_all_uarts[0].rx_completed || gl_all_uarts[1].rx_completed || gl_all_uarts[2].rx_completed || gl_all_uarts[3].rx_completed)
 
     PT_BEGIN(pt);
     while(1)
-    {
-        uart_recv(UART_UP, UART_UP->rx_buffer, UART_RX_BUFF_SIZE);
+    {        
         PT_WAIT_UNTIL(pt, UART_UP->rx_completed);
         if ( UART_UP->rx_size == 0 ) 
             continue;
@@ -414,9 +431,9 @@ char uart_thread(void)
             timer_set(&timer,100);        
             PT_WAIT_UNTIL(pt,  TX_FINISH || timer_expired(&timer) );
 
-            // if ( !TX_FINISH ) {
-            //     continue;
-            // }
+            if ( !TX_FINISH ) {
+                continue;
+            }
             
             for (int n = 0; n < 4; n++)
                 uart_recv(gl_all_uarts+n, gl_all_uarts[n].rx_buffer, UART_RX_BUFF_SIZE);
@@ -443,7 +460,26 @@ char uart_thread(void)
                 break;
             }
         }
+        
+        UART_UP->rx_size = 0;
     }
+    PT_END(pt);
+}
+
+char uart_recv_up_serial_thread(void)
+{
+    static struct pt * pt = (struct pt*)&gl_recv_pt;
+    PT_BEGIN(pt);
+
+    while(1)
+    {                
+        uart_recv(UART_UP, UART_UP->rx_buffer, UART_RX_BUFF_SIZE);
+        PT_WAIT_UNTIL(pt, UART_UP->rx_completed); 
+
+        //等待处理完成
+        PT_WAIT_UNTIL(pt, UART_UP->rx_size == 0 );
+    }
+
     PT_END(pt);
 }
 

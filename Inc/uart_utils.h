@@ -45,5 +45,6 @@ extern uart_contex_t gl_all_uarts[5];
 char uart_test1_thread(void);
 char uart_thread(void);
 void uart_app_init(void);
+char uart_recv_up_serial_thread(void);
 
 #endif
