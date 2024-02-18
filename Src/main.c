@@ -99,9 +99,8 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
-    uart_test1_thread();
-    //uart_recv_up_serial_thread();
+    /* USER CODE BEGIN 3 */    
+    uart_thread();
   }
   /* USER CODE END 3 */
 }

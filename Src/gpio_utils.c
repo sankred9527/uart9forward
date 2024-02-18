@@ -13,17 +13,17 @@ void SetLed(uint8_t ledtype, uint8_t ledidx, uint8_t status)
 {
 	switch (ledtype)
 	{
-		case 0:
+		case LED_POWER_TYPE:
 		{
 			if(ledidx >= 3) return;
 			HAL_GPIO_WritePin(GPIO_TypeList[PLeds[ledidx][0]], PLeds[ledidx][1], status > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
 		}break;
-		case 1:
+		case LED_RED_TYPE:
 		{
 			if(ledidx >= 9) return;
 			HAL_GPIO_WritePin(GPIO_TypeList[RLeds[ledidx][0]], RLeds[ledidx][1], status > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);
 		}break;
-		case 2:
+		case LED_GREEN_TYPE:
 		{
 			if(ledidx >= 9) return;
 			HAL_GPIO_WritePin(GPIO_TypeList[GLeds[ledidx][0]], GLeds[ledidx][1], status > 0 ? GPIO_PIN_RESET : GPIO_PIN_SET);

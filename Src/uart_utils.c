@@ -5,6 +5,8 @@
 #include "gpio_utils.h"
 #include <stdarg.h>
 
+
+
 uart_contex_t gl_all_uarts[5];
 
 #define UART_UP (gl_all_uarts+4)
@@ -17,9 +19,9 @@ static struct {
 } gl_test1_pt;
 
 static struct pt gl_recv_pt;
-static struct pt gl_main_pt;
+static struct pt gl_down_pt;
 
-static void uart_send(uart_contex_t *ucontex, uint8_t *data, uint16_t size);
+static HAL_StatusTypeDef uart_send(uart_contex_t *ucontex, uint8_t *data, uint16_t size);
 
 void mylog(char* format, ...) {
     va_list args;  // 定义一个变量参数列表
@@ -204,6 +206,7 @@ static void my_RxEventCallback(UART_HandleTypeDef *huart, uint16_t size)
     if ( size >= UART_RX_BUFF_SIZE )
         size = UART_RX_BUFF_SIZE;
 
+    ucontex->led_rx_onoff = true;
     ucontex->rx_completed = true;
     ucontex->rx_size = size;
 }
@@ -230,12 +233,24 @@ void my_TxCpltCallback(UART_HandleTypeDef *huart)
             return;
     }    
     ucontex->tx_completed = true;
+    ucontex->led_tx_onoff = true;
+}
+
+void my_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    static int cnt = 0;
+    if ((huart->ErrorCode & HAL_UART_ERROR_ORE) != RESET)
+    {
+        cnt++;
+        //__HAL_UART_CLEAR_OREFLAG(huart);
+        __HAL_UART_CLEAR_FLAG(huart, UART_FLAG_ORE);
+    }
 }
 
 void uart_app_init(void)
 {
     PT_INIT((struct pt*)&gl_test1_pt);
-    PT_INIT(&gl_main_pt);
+    PT_INIT(&gl_down_pt);
     PT_INIT(&gl_recv_pt);
 
     #define MAKE_INSTANCE(x) {\
@@ -323,7 +338,11 @@ void uart_app_init(void)
         }
         
         HAL_UART_RegisterCallback(&UART_GET_HANDLE(n),  HAL_UART_TX_COMPLETE_CB_ID, my_TxCpltCallback);
+        HAL_UART_RegisterCallback(&UART_GET_HANDLE(n),  HAL_UART_ERROR_CB_ID, my_ErrorCallback);
+        
         HAL_UART_RegisterRxEventCallback(&UART_GET_HANDLE(n), my_RxEventCallback );        
+
+        PT_INIT(&gl_all_uarts[n].pt_led);
     }
 
 }
@@ -350,7 +369,7 @@ void uart_app_init_device_with_channel(int channel)
     }
 }
 
-static void uart_send(uart_contex_t *ucontex, uint8_t *data, uint16_t size)
+static HAL_StatusTypeDef uart_send(uart_contex_t *ucontex, uint8_t *data, uint16_t size)
 {    
     switch (ucontex->index)
     {
@@ -372,14 +391,14 @@ static void uart_send(uart_contex_t *ucontex, uint8_t *data, uint16_t size)
         HAL_GPIO_WritePin(ucontex->rts_gpio[0].gpiox, ucontex->rts_gpio[0].gpio_pin, GPIO_PIN_SET);
         break;
     default:
-        return;
+        return HAL_ERROR;
     }
     ucontex->tx_completed = false;
-    HAL_UART_Transmit_IT(&ucontex->uart_instance, data, size); 
+    return HAL_UART_Transmit_IT(&ucontex->uart_instance, data, size); 
 }
 
 
-static void uart_recv(uart_contex_t *ucontex, uint8_t *data, uint16_t size)
+static HAL_StatusTypeDef uart_recv(uart_contex_t *ucontex, uint8_t *data, uint16_t size)
 {    
     switch (ucontex->index)
     {
@@ -396,20 +415,99 @@ static void uart_recv(uart_contex_t *ucontex, uint8_t *data, uint16_t size)
         HAL_GPIO_WritePin(ucontex->rts_gpio[0].gpiox, ucontex->rts_gpio[0].gpio_pin, GPIO_PIN_RESET);
         break;
     default:
-        return;
+        return HAL_ERROR;
     }
     ucontex->rx_completed = false;
     ucontex->rx_size = 0;
-    HAL_UARTEx_ReceiveToIdle_IT(&ucontex->uart_instance, data, size);
+    return HAL_UARTEx_ReceiveToIdle_IT(&ucontex->uart_instance, data, size);
 }
 
 #define TX_FINISH (gl_all_uarts[0].tx_completed && gl_all_uarts[1].tx_completed && gl_all_uarts[2].tx_completed && gl_all_uarts[3].tx_completed)
 #define RX_FINISH (gl_all_uarts[0].rx_completed || gl_all_uarts[1].rx_completed || gl_all_uarts[2].rx_completed || gl_all_uarts[3].rx_completed)
 
-
-char uart_thread(void)
+static void uart_led_deal(uart_contex_t *ucontex, int type , bool on_off)
 {
-    static struct pt *pt = (struct pt*)&gl_main_pt;
+    GPIO_PinState state = on_off ? GPIO_PIN_RESET : GPIO_PIN_SET;
+    
+    //type = 0 is tx , type = 1 is rx
+    switch (ucontex->index)
+    {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+        if ( type == 0 )
+            HAL_GPIO_WritePin(ucontex->gled_gpio[ucontex->current_channel].gpiox, ucontex->gled_gpio[ucontex->current_channel].gpio_pin, state);
+        else
+            HAL_GPIO_WritePin(ucontex->rled_gpio[ucontex->current_channel].gpiox, ucontex->rled_gpio[ucontex->current_channel].gpio_pin, state);
+        break;
+    case 4:
+        if ( type == 0 )
+            HAL_GPIO_WritePin(ucontex->gled_gpio[0].gpiox, ucontex->gled_gpio[0].gpio_pin, state);
+        else
+            HAL_GPIO_WritePin(ucontex->rled_gpio[0].gpiox, ucontex->rled_gpio[0].gpio_pin, state);
+    default:
+        break;
+    }
+    
+}
+
+static char uart_led_thread(uart_contex_t *ucontex)
+{
+    const static int led_time = 100;
+    static struct pt *pt;
+
+    pt = &ucontex->pt_led;
+
+    PT_BEGIN(pt);
+    while(1)
+    {
+        if ( ucontex->led_tx_onoff ) {            
+            //open led
+            
+            uart_led_deal(ucontex, 0, true);
+
+            timer_set(&ucontex->led_tx_timer, led_time);
+            PT_WAIT_UNTIL(pt, timer_expired(&ucontex->led_tx_timer)); 
+
+            uart_led_deal(ucontex, 0, false);            
+            ucontex->led_tx_onoff = false;
+        }        
+
+        if ( ucontex->led_rx_onoff ) {            
+            uart_led_deal(ucontex, 1, true);
+
+            timer_set(&ucontex->led_rx_timer, led_time);
+            PT_WAIT_UNTIL(pt, timer_expired(&ucontex->led_rx_timer));
+
+            uart_led_deal(ucontex, 1, false);
+            ucontex->led_rx_onoff = false;
+        }
+        
+        PT_YIELD(pt);
+    }
+
+    PT_END(pt);
+}
+static char uart_down_thread(void);
+static char uart_recv_up_serial_thread(void);
+
+void uart_thread(void)
+{
+    // uart_recv_up_serial_thread();    
+    // uart_down_thread();
+
+    uart_test1_thread();
+
+    for (int n = 0; n < 5; n++)
+    {
+        uart_led_thread(gl_all_uarts+n);
+    }
+}
+
+static char uart_down_thread(void)
+{
+    static struct pt *pt = (struct pt*)&gl_down_pt;
     static struct mcu_timer timer;
     static int channel ;    
     static int to_send_index = -1;
@@ -418,25 +516,34 @@ char uart_thread(void)
     PT_BEGIN(pt);
     while(1)
     {        
-        PT_WAIT_UNTIL(pt, UART_UP->rx_completed);
-        if ( UART_UP->rx_size == 0 ) 
-            continue;
+        PT_WAIT_UNTIL(pt, UART_UP->rx_size > 0);        
 
         to_send_index = -1;
         for (channel=0;channel<2;channel++)
         {
+            int has_error = 0;
+
             uart_app_init_device_with_channel(channel);
-            for (int n = 0; n < 4; n++)
-                uart_send(gl_all_uarts+n, UART_UP->rx_buffer, UART_UP->rx_size);        
+            for (int n = 0; n < 4; n++) {
+                if ( HAL_OK != uart_send(gl_all_uarts+n, UART_UP->rx_buffer, UART_UP->rx_size) )
+                    has_error = 1;
+            }
+            if ( has_error )
+                continue;
+            
             timer_set(&timer,100);        
             PT_WAIT_UNTIL(pt,  TX_FINISH || timer_expired(&timer) );
 
-            if ( !TX_FINISH ) {
+            if ( !TX_FINISH )
                 continue;
-            }
             
-            for (int n = 0; n < 4; n++)
-                uart_recv(gl_all_uarts+n, gl_all_uarts[n].rx_buffer, UART_RX_BUFF_SIZE);
+            has_error = 0;
+            for (int n = 0; n < 4; n++) {
+                if ( HAL_OK != uart_recv(gl_all_uarts+n, gl_all_uarts[n].rx_buffer, UART_RX_BUFF_SIZE) )
+                    has_error = 1;
+            }
+            if ( has_error )
+                continue;
 
             timer_set(&timer,100);
             PT_WAIT_UNTIL(pt, RX_FINISH || timer_expired(&timer) );
@@ -454,9 +561,11 @@ char uart_thread(void)
             if ( to_send_index >= 0 )
             {
                 //send to up
-                uart_send(UART_UP, gl_all_uarts[to_send_index].rx_buffer, gl_all_uarts[to_send_index].rx_size);
-                timer_set(&timer,100);
-                PT_WAIT_UNTIL(pt,  UART_UP->rx_completed || timer_expired(&timer) );
+                if ( HAL_OK == uart_send(UART_UP, gl_all_uarts[to_send_index].rx_buffer, gl_all_uarts[to_send_index].rx_size) )
+                {
+                    timer_set(&timer,100);
+                    PT_WAIT_UNTIL(pt,  UART_UP->rx_completed || timer_expired(&timer) );
+                }                
                 break;
             }
         }
@@ -466,7 +575,7 @@ char uart_thread(void)
     PT_END(pt);
 }
 
-char uart_recv_up_serial_thread(void)
+static char uart_recv_up_serial_thread(void)
 {
     static struct pt * pt = (struct pt*)&gl_recv_pt;
     PT_BEGIN(pt);
@@ -489,25 +598,28 @@ char uart_test1_thread(void)
     static struct mcu_timer timer;
     
     PT_BEGIN(pt);
+        
     while (1)
     {
-        static uint8_t data[] = "hello\r\n";
+        static char data[128];
 
-        timer_set(&timer,1000);
-        PT_WAIT_UNTIL(pt, timer_expired(&timer));        
-        SetLed(1,8,0);
-
-        SetLed(2,0,1);
-        uart_send(UART_UP, data, sizeof(data));
-        PT_WAIT_UNTIL(pt, UART_UP->tx_completed);
-        SetLed(2,0,0);
-
-        timer_set(&timer,1000);
-        PT_WAIT_UNTIL(pt, timer_expired(&timer));
-        SetLed(1,8,1);    
+        memset(data, 0, sizeof(data));
         
-        //uart_send(UART_UP, "hello\r\n", 7);
-        //PT_WAIT_UNTIL(pt, UART_UP->tx_completed);
+        if ( HAL_OK == uart_recv(UART_UP, UART_UP->rx_buffer, UART_RX_BUFF_SIZE) ) 
+            PT_WAIT_UNTIL(pt, UART_UP->rx_completed);
+        else {
+            continue;
+        }
+
+        timer_set(&timer,200);
+        PT_WAIT_UNTIL(pt, timer_expired(&timer));                   
+        int n = snprintf(data, sizeof(data),"get reply:");            
+        memcpy(data+n, UART_UP->rx_buffer, UART_UP->rx_size);
+        strcat(data, "\r\n");                
+        if (HAL_OK == uart_send(UART_UP, (uint8_t*)data, strlen(data)) )
+            PT_WAIT_UNTIL(pt, UART_UP->tx_completed);
+        else
+            PT_YIELD(pt);
     }
     PT_END(pt);
 }
