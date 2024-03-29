@@ -99,7 +99,7 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */    
+    /* USER CODE BEGIN 3 */
     uart_thread();
   }
   /* USER CODE END 3 */
@@ -156,50 +156,46 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOE_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LG1_Pin|LG2_Pin|LG3_Pin|LG4_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOE, LG3_Pin|LG4_Pin|LG5_Pin|LG6_Pin
+                          |LG7_Pin|LG1_Pin|LG2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LG5_Pin|LG6_Pin|LR1_Pin|LR2_Pin
-                          |LR3_Pin|LG7_Pin|LG8_Pin|LG9_Pin
-                          |PWR2_Pin|PWR3_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, LR1_Pin|LR2_Pin|LR3_Pin|LG8_Pin
+                          |LG9_Pin|PWR2_Pin|PWR3_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, LR4_Pin|LR5_Pin|LR6_Pin|LR7_Pin
                           |LR8_Pin|LR9_Pin|PWR1_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, RTS3_1_Pin|RTS5S_Pin|RTS2_1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(RTS4_GPIO_Port, RTS4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, RTS4_0S_Pin|RTS4_1S_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, BEEP_Pin|RTS1_1S_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(RTS5S_GPIO_Port, RTS5S_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : LG1_Pin LG2_Pin LG3_Pin LG4_Pin */
-  GPIO_InitStruct.Pin = LG1_Pin|LG2_Pin|LG3_Pin|LG4_Pin;
+  /*Configure GPIO pins : LG3_Pin LG4_Pin LG5_Pin LG6_Pin
+                           LG7_Pin LG1_Pin LG2_Pin */
+  GPIO_InitStruct.Pin = LG3_Pin|LG4_Pin|LG5_Pin|LG6_Pin
+                          |LG7_Pin|LG1_Pin|LG2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LG5_Pin LG6_Pin LR1_Pin LR2_Pin
-                           LR3_Pin LG7_Pin LG8_Pin LG9_Pin
-                           PWR2_Pin PWR3_Pin */
-  GPIO_InitStruct.Pin = LG5_Pin|LG6_Pin|LR1_Pin|LR2_Pin
-                          |LR3_Pin|LG7_Pin|LG8_Pin|LG9_Pin
-                          |PWR2_Pin|PWR3_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  /*Configure GPIO pin : InVDet_Pin */
+  GPIO_InitStruct.Pin = InVDet_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  HAL_GPIO_Init(InVDet_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : BR0_Pin BR1_Pin RSV0_Pin RSV1_Pin */
   GPIO_InitStruct.Pin = BR0_Pin|BR1_Pin|RSV0_Pin|RSV1_Pin;
@@ -207,17 +203,14 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : TXD3_1_Pin TXD2_1_Pin */
-  GPIO_InitStruct.Pin = TXD3_1_Pin|TXD2_1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : RXD3_1_Pin RXD2_1_Pin */
-  GPIO_InitStruct.Pin = RXD3_1_Pin|RXD2_1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  /*Configure GPIO pins : LR1_Pin LR2_Pin LR3_Pin LG8_Pin
+                           LG9_Pin PWR2_Pin PWR3_Pin */
+  GPIO_InitStruct.Pin = LR1_Pin|LR2_Pin|LR3_Pin|LG8_Pin
+                          |LG9_Pin|PWR2_Pin|PWR3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LR4_Pin LR5_Pin LR6_Pin LR7_Pin
                            LR8_Pin LR9_Pin PWR1_Pin */
@@ -228,47 +221,26 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : RTS3_1_Pin RTS5S_Pin RTS2_1_Pin */
-  GPIO_InitStruct.Pin = RTS3_1_Pin|RTS5S_Pin|RTS2_1_Pin;
+  /*Configure GPIO pin : RTS4_Pin */
+  GPIO_InitStruct.Pin = RTS4_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+  HAL_GPIO_Init(RTS4_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : RTS4_0S_Pin RTS4_1S_Pin */
-  GPIO_InitStruct.Pin = RTS4_0S_Pin|RTS4_1S_Pin;
+  /*Configure GPIO pin : BEEP_Pin */
+  GPIO_InitStruct.Pin = BEEP_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(BEEP_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : BEEP_Pin RTS1_1S_Pin */
-  GPIO_InitStruct.Pin = BEEP_Pin|RTS1_1S_Pin;
+  /*Configure GPIO pin : RTS5S_Pin */
+  GPIO_InitStruct.Pin = RTS5S_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : TXD1_1_Pin */
-  GPIO_InitStruct.Pin = TXD1_1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(TXD1_1_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : RXD1_1_Pin */
-  GPIO_InitStruct.Pin = RXD1_1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(RXD1_1_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configures the port and pin on which the EVENTOUT Cortex signal will be connected */
-  HAL_GPIOEx_ConfigEventout(AFIO_EVENTOUT_PORT_D, AFIO_EVENTOUT_PIN_8|AFIO_EVENTOUT_PIN_5);
-
-  /*Configures the port and pin on which the EVENTOUT Cortex signal will be connected */
-  HAL_GPIOEx_ConfigEventout(AFIO_EVENTOUT_PORT_B, AFIO_EVENTOUT_PIN_6);
-
-  /*Enables the Event Output */
-  HAL_GPIOEx_EnableEventout();
+  HAL_GPIO_Init(RTS5S_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */

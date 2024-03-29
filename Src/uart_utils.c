@@ -142,7 +142,8 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
 
                 GPIO_InitStruct.Pin = rx_pin;
                 GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-                GPIO_InitStruct.Pull = GPIO_NOPULL;
+                //GPIO_InitStruct.Pull = GPIO_NOPULL;
+                GPIO_InitStruct.Pull = GPIO_PULLUP;
                 HAL_GPIO_Init(rx_group, &GPIO_InitStruct);    
 
 
@@ -201,7 +202,7 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
 
             GPIO_InitStruct.Pin = ucontext->rx_gpio[0].gpio_pin;
             GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-            GPIO_InitStruct.Pull = GPIO_NOPULL;
+            GPIO_InitStruct.Pull = GPIO_PULLUP;
             HAL_GPIO_Init(ucontext->rx_gpio[0].gpiox, &GPIO_InitStruct);
 
             for (int n =0; n<2; n++)
