@@ -107,10 +107,9 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
     //不需要调用   __HAL_RCC_GPIO?_CLK_ENABLE(); 因为其他地方已经enable 了
     
     /**USART1 GPIO Configuration */    
-    if (ucontext->index < (UART_NUM-1) )
+    if (ucontext->index == 3 )
 	{
     	HAL_GPIO_WritePin(ucontext->rts_gpio[0].gpiox, ucontext->rts_gpio[0].gpio_pin, GPIO_PIN_RESET);
-    	HAL_GPIO_WritePin(ucontext->rts_gpio[1].gpiox, ucontext->rts_gpio[1].gpio_pin, GPIO_PIN_RESET);
 	}
 
     switch(ucontext->index)
@@ -119,6 +118,7 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
         case 1:
         case 2:
         {
+#if 0            
             channel = 0;
 
             uint16_t tx_pin = ucontext->tx_gpio[channel].gpio_pin;
@@ -174,7 +174,7 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
                 HAL_GPIO_WritePin(ucontext->rts_gpio[1].gpiox, ucontext->rts_gpio[1].gpio_pin, GPIO_PIN_RESET);
             }
             
-      
+#endif
             switch(ucontext->index)
             {
             case 0:
@@ -263,8 +263,6 @@ void my_TxCpltCallback(UART_HandleTypeDef *huart)
         case 1:
         case 2:
         case 3:
-            HAL_GPIO_WritePin(ucontex->rts_gpio[0].gpiox, ucontex->rts_gpio[0].gpio_pin, GPIO_PIN_RESET);
-            HAL_GPIO_WritePin(ucontex->rts_gpio[1].gpiox, ucontex->rts_gpio[1].gpio_pin, GPIO_PIN_RESET);
             break;
         case 4:
             HAL_GPIO_WritePin(ucontex->rts_gpio[0].gpiox, ucontex->rts_gpio[0].gpio_pin, GPIO_PIN_RESET);
@@ -295,7 +293,7 @@ void uart_app_init(void)
     PT_INIT((struct pt*)&gl_test1_pt);
 
 
-    #define MAKE_INSTANCE(x) {\
+    #define MAKE_INSTANCE(x,y) {\
         .Instance = x,\
         .Init= {\
             .BaudRate = 115200,\
@@ -303,7 +301,7 @@ void uart_app_init(void)
             .StopBits = UART_STOPBITS_1,\
             .Parity = UART_PARITY_NONE,\
             .Mode = UART_MODE_TX_RX,\
-            .HwFlowCtl = UART_HWCONTROL_NONE,\
+            .HwFlowCtl = y,\
             .OverSampling = UART_OVERSAMPLING_16\
         }\
     }
@@ -311,58 +309,58 @@ void uart_app_init(void)
     memset(gl_all_uarts, 0, sizeof(gl_all_uarts));
     
     gl_all_uarts[0] = (uart_contex_t) {
-        .uart_instance = MAKE_INSTANCE(USART1),
+        .uart_instance = MAKE_INSTANCE(USART1, UART_HWCONTROL_RTS),
         .irqt = USART1_IRQn,
-        .tx_gpio = {  { .gpiox = TXD1_0_GPIO_Port, .gpio_pin = TXD1_0_Pin } ,  { .gpiox = TXD1_1_GPIO_Port, .gpio_pin = TXD1_1_Pin } },
-        .rx_gpio = {  { .gpiox = RXD1_0_GPIO_Port, .gpio_pin = RXD1_0_Pin } ,  { .gpiox = RXD1_1_GPIO_Port, .gpio_pin = RXD1_1_Pin } },
-        .rts_gpio = { { .gpiox = RTS1_0_GPIO_Port, .gpio_pin = RTS1_0_Pin } ,  { .gpiox = RTS1_1S_GPIO_Port, .gpio_pin = RTS1_1S_Pin } },
-        .rled_gpio = { { .gpiox = LR2_GPIO_Port, .gpio_pin = LR2_Pin }, { .gpiox = LR3_GPIO_Port, .gpio_pin = LR3_Pin } },
-        .gled_gpio = { { .gpiox = LG2_GPIO_Port, .gpio_pin = LG2_Pin }, { .gpiox = LG3_GPIO_Port, .gpio_pin = LG3_Pin } },
+        .tx_gpio = {  { .gpiox = TXD1_GPIO_Port, .gpio_pin = TXD1_Pin }   },
+        .rx_gpio = {  { .gpiox = RXD1_GPIO_Port, .gpio_pin = RXD1_Pin } },
+        .rts_gpio = { { .gpiox = RTS1_GPIO_Port, .gpio_pin = RTS1_Pin } },
+        //.rled_gpio = { { .gpiox = LR2_GPIO_Port, .gpio_pin = LR2_Pin }, { .gpiox = LR3_GPIO_Port, .gpio_pin = LR3_Pin } },
+        //.gled_gpio = { { .gpiox = LG2_GPIO_Port, .gpio_pin = LG2_Pin }, { .gpiox = LG3_GPIO_Port, .gpio_pin = LG3_Pin } },
         .index = 0
     };
 
     gl_all_uarts[1] = (uart_contex_t) {
-        .uart_instance = MAKE_INSTANCE(USART2),
+        .uart_instance = MAKE_INSTANCE(USART2,UART_HWCONTROL_RTS),
         .irqt = USART2_IRQn,
-        .tx_gpio = {  { .gpiox = TXD2_0_GPIO_Port, .gpio_pin = TXD2_0_Pin } ,  { .gpiox = TXD2_1_GPIO_Port, .gpio_pin = TXD2_1_Pin } },
-        .rx_gpio = {  { .gpiox = RXD2_0_GPIO_Port, .gpio_pin = RXD2_0_Pin } ,  { .gpiox = RXD2_1_GPIO_Port, .gpio_pin = RXD2_1_Pin } },
-        .rts_gpio = { { .gpiox = RTS2_0_GPIO_Port, .gpio_pin = RTS2_0_Pin } ,  { .gpiox = RTS2_1_GPIO_Port, .gpio_pin = RTS2_1_Pin } },
-        .rled_gpio = { { .gpiox = LR4_GPIO_Port, .gpio_pin = LR4_Pin }, { .gpiox = LR5_GPIO_Port, .gpio_pin = LR5_Pin } },
-        .gled_gpio = { { .gpiox = LG4_GPIO_Port, .gpio_pin = LG4_Pin }, { .gpiox = LG5_GPIO_Port, .gpio_pin = LG5_Pin } },
+        .tx_gpio = {  { .gpiox = TXD2_GPIO_Port, .gpio_pin = TXD2_Pin } },
+        .rx_gpio = {  { .gpiox = RXD2_GPIO_Port, .gpio_pin = RXD2_Pin } },
+        .rts_gpio = { { .gpiox = RTS2_GPIO_Port, .gpio_pin = RTS2_Pin } },
+        //.rled_gpio = { { .gpiox = LR4_GPIO_Port, .gpio_pin = LR4_Pin }, { .gpiox = LR5_GPIO_Port, .gpio_pin = LR5_Pin } },
+        //.gled_gpio = { { .gpiox = LG4_GPIO_Port, .gpio_pin = LG4_Pin }, { .gpiox = LG5_GPIO_Port, .gpio_pin = LG5_Pin } },
         .index = 1
     };
 
     gl_all_uarts[2] = (uart_contex_t) {
-        .uart_instance = MAKE_INSTANCE(USART3),
+        .uart_instance = MAKE_INSTANCE(USART3, UART_HWCONTROL_RTS),
         .irqt = USART3_IRQn,
-        .tx_gpio = {  { .gpiox = TXD3_0_GPIO_Port, .gpio_pin = TXD3_0_Pin } ,  { .gpiox = TXD3_1_GPIO_Port, .gpio_pin = TXD3_1_Pin } },
-        .rx_gpio = {  { .gpiox = RXD3_0_GPIO_Port, .gpio_pin = RXD3_0_Pin } ,  { .gpiox = RXD3_1_GPIO_Port, .gpio_pin = RXD3_1_Pin } },
-        .rts_gpio = { { .gpiox = RTS3_0_GPIO_Port, .gpio_pin = RTS3_0_Pin } ,  { .gpiox = RTS3_1_GPIO_Port, .gpio_pin = RTS3_1_Pin } },
-        .rled_gpio = { { .gpiox = LR6_GPIO_Port, .gpio_pin = LR6_Pin }, { .gpiox = LR7_GPIO_Port, .gpio_pin = LR7_Pin } },
-        .gled_gpio = { { .gpiox = LG6_GPIO_Port, .gpio_pin = LG6_Pin }, { .gpiox = LG7_GPIO_Port, .gpio_pin = LG7_Pin } },
+        .tx_gpio = {  { .gpiox = TXD3_GPIO_Port, .gpio_pin = TXD3_Pin }  },
+        .rx_gpio = {  { .gpiox = RXD3_GPIO_Port, .gpio_pin = RXD3_Pin } },
+        .rts_gpio = { { .gpiox = RTS3_GPIO_Port, .gpio_pin = RTS3_Pin } },
+        //.rled_gpio = { { .gpiox = LR6_GPIO_Port, .gpio_pin = LR6_Pin }, { .gpiox = LR7_GPIO_Port, .gpio_pin = LR7_Pin } },
+        //.gled_gpio = { { .gpiox = LG6_GPIO_Port, .gpio_pin = LG6_Pin }, { .gpiox = LG7_GPIO_Port, .gpio_pin = LG7_Pin } },
         .index = 2
     };
         
     //uart4
     gl_all_uarts[3] = (uart_contex_t) {
-        .uart_instance = MAKE_INSTANCE(UART4),
+        .uart_instance = MAKE_INSTANCE(UART4, UART_HWCONTROL_NONE),
         .irqt = UART4_IRQn,
         .tx_gpio = {{.gpiox = TXD4_GPIO_Port, .gpio_pin = TXD4_Pin}},
         .rx_gpio = {{.gpiox = RXD4_GPIO_Port, .gpio_pin = RXD4_Pin}},
-        .rts_gpio = { { .gpiox = RTS4_0S_GPIO_Port, .gpio_pin = RTS4_0S_Pin } ,  { .gpiox = RTS4_1S_GPIO_Port, .gpio_pin = RTS4_1S_Pin } },
-        .rled_gpio = { { .gpiox = LR8_GPIO_Port, .gpio_pin = LR8_Pin }, { .gpiox = LR9_GPIO_Port, .gpio_pin = LR9_Pin } },
-        .gled_gpio = { { .gpiox = LG8_GPIO_Port, .gpio_pin = LG8_Pin }, { .gpiox = LG9_GPIO_Port, .gpio_pin = LG9_Pin } },
+        .rts_gpio = { { .gpiox = RTS4_GPIO_Port, .gpio_pin = RTS4_Pin } },
+        //.rled_gpio = { { .gpiox = LR8_GPIO_Port, .gpio_pin = LR8_Pin }, { .gpiox = LR9_GPIO_Port, .gpio_pin = LR9_Pin } },
+        //.gled_gpio = { { .gpiox = LG8_GPIO_Port, .gpio_pin = LG8_Pin }, { .gpiox = LG9_GPIO_Port, .gpio_pin = LG9_Pin } },
         .index = 3
     };
 
     gl_all_uarts[4] = (uart_contex_t) {
-        .uart_instance = MAKE_INSTANCE(UART5),
+        .uart_instance = MAKE_INSTANCE(UART5, UART_HWCONTROL_NONE),
         .irqt = UART5_IRQn,
         .tx_gpio = {{.gpiox = TXD5_GPIO_Port, .gpio_pin = TXD5_Pin}},
         .rx_gpio = {{.gpiox = RXD5_GPIO_Port, .gpio_pin = RXD5_Pin}},
         .rts_gpio = { { .gpiox = RTS5S_GPIO_Port, .gpio_pin = RTS5S_Pin } },
-        .rled_gpio = { { .gpiox = LR1_GPIO_Port, .gpio_pin = LR1_Pin }},
-        .gled_gpio = { { .gpiox = LG1_GPIO_Port, .gpio_pin = LG1_Pin }},
+        //.rled_gpio = { { .gpiox = LR1_GPIO_Port, .gpio_pin = LR1_Pin }},
+        //.gled_gpio = { { .gpiox = LG1_GPIO_Port, .gpio_pin = LG1_Pin }},
         .index = 4
     };
     
@@ -417,9 +415,7 @@ static HAL_StatusTypeDef uart_send_all_channel(uart_contex_t *ucontex, uint8_t *
     case 0:
     case 1:
     case 2:
-    case 3:
-        HAL_GPIO_WritePin(ucontex->rts_gpio[0].gpiox, ucontex->rts_gpio[0].gpio_pin, GPIO_PIN_SET);
-        HAL_GPIO_WritePin(ucontex->rts_gpio[1].gpiox, ucontex->rts_gpio[1].gpio_pin, GPIO_PIN_SET);
+    case 3:        
         break;
     case 4:
         HAL_GPIO_WritePin(ucontex->rts_gpio[0].gpiox, ucontex->rts_gpio[0].gpio_pin, GPIO_PIN_SET);
@@ -521,7 +517,7 @@ void uart_thread(void)
 {
     for (int n = 0; n < UART_NUM; n++)
     {
-        uart_led_thread(gl_all_uarts+n);
+        //uart_led_thread(gl_all_uarts+n);
         uart_recv_serial_thread(gl_all_uarts+n);
         uart_send_serial_thread(gl_all_uarts+n);
     }
