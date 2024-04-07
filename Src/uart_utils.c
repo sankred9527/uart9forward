@@ -254,15 +254,54 @@ void my_ErrorCallback(UART_HandleTypeDef *huart)
     __HAL_UART_CLEAR_FLAG(huart, UART_FLAG_PE);
 }
 
+static int read_bitrate()
+{
+	GPIO_PinState v0 = HAL_GPIO_ReadPin(BR0_GPIO_Port, BR0_Pin);
+	GPIO_PinState v1 = HAL_GPIO_ReadPin(BR1_GPIO_Port, BR1_Pin);
+	uint16_t bb = ((int)v0<<4) + v1;
+	int bitrate = 115200;
+	switch (bb)
+	{
+/*
+	case 0x00:
+		bitrate = 115200;
+		break;
+	case 0x01:
+		bitrate = 19200;
+		break;
+	case 0x10:
+		bitrate = 9600;
+		break;
+	case 0x11:
+		bitrate = 38400;
+		break;
+		*/
+	case 0x00:
+		bitrate = 38400;
+		break;
+	case 0x01:
+		bitrate = 9600;
+		break;
+	case 0x10:
+		bitrate = 19200;
+		break;
+	case 0x11:
+		bitrate = 115200;
+		break;
+	}
+	return bitrate;
+}
+
 void uart_app_init(void)
 {
     PT_INIT((struct pt*)&gl_test1_pt);
 
+    int bitrate = read_bitrate();
 
     #define MAKE_INSTANCE(x,y) {\
         .Instance = x,\
         .Init= {\
-            .BaudRate = 115200,\
+            .BaudRate = bitrate,\
             .WordLength = UART_WORDLENGTH_8B,\
             .StopBits = UART_STOPBITS_1,\
             .Parity = UART_PARITY_NONE,\
@@ -453,32 +492,19 @@ static void uart_led_deal(uart_contex_t *ucontex, int type , bool on_off)
 static char uart_led_thread(uart_contex_t *ucontex)
 {
     const static int led_time = 100;
-    static struct pt *pt;
 
-    pt = &ucontex->pt_led;
+#define LED_PT  (&ucontex->pt_led)
 
-    PT_BEGIN(pt);
+    PT_BEGIN(LED_PT);
     while(1)
     {
-    	if ( ucontex->index == 3000 )
-    	{
-    		uart_led_deal(ucontex, 0, true);
-
-			timer_set(&ucontex->led_tx_timer, 1000);
-			PT_WAIT_UNTIL(pt, timer_expired(&ucontex->led_tx_timer));
-
-			uart_led_deal(ucontex, 0, false);
-
-			timer_set(&ucontex->led_tx_timer, 1000);
-			PT_WAIT_UNTIL(pt, timer_expired(&ucontex->led_tx_timer));
-    	} else {
-    		PT_WAIT_UNTIL(pt, ucontex->led_tx_onoff || ucontex->led_rx_onoff );
+    		PT_WAIT_UNTIL(LED_PT, ucontex->led_tx_onoff || ucontex->led_rx_onoff );
     		if ( ucontex->led_tx_onoff ) {
-    		    //open led
+    		    //open red led = 0
 				uart_led_deal(ucontex, 0, true);
 
 				timer_set(&ucontex->led_tx_timer, led_time);
-				PT_WAIT_UNTIL(pt, timer_expired(&ucontex->led_tx_timer));
+				PT_WAIT_UNTIL(LED_PT, timer_expired(&ucontex->led_tx_timer));
 
 				uart_led_deal(ucontex, 0, false);
 				ucontex->led_tx_onoff = false;
@@ -488,18 +514,16 @@ static char uart_led_thread(uart_contex_t *ucontex)
 				uart_led_deal(ucontex, 1, true);
 
 				timer_set(&ucontex->led_rx_timer, led_time);
-				PT_WAIT_UNTIL(pt, timer_expired(&ucontex->led_rx_timer));
+				PT_WAIT_UNTIL(LED_PT, timer_expired(&ucontex->led_rx_timer));
 
 				uart_led_deal(ucontex, 1, false);
 				ucontex->led_rx_onoff = false;
 			}
-    	}
-
         
-        PT_YIELD(pt);
+        PT_YIELD(LED_PT);
     }
 
-    PT_END(pt);
+    PT_END(LED_PT);
 }
 
 static char uart_recv_serial_thread(uart_contex_t *ctx);
@@ -509,6 +533,8 @@ void uart_thread(void)
 {
 	static int flag = 0;
 	if ( flag == 0 ) {
+
+		uart_led_deal(UART_UP, 0, true);
 		ring_buffer_queue_arr(&UART_UP->send_ringbuf, "start", 5);
 		flag = 1;
 	}
