@@ -573,15 +573,35 @@ static char uart_send_serial_thread(uart_contex_t *ctx)
         	PT_YIELD(&ctx->pt_send);
         }
 #else
+        PT_WAIT_UNTIL( &ctx->pt_send , ring_buffer_num_items(&ctx->send_ringbuf) > 0);
 
-        memcpy(ctx->lowlevel_tx_buffer, "\n1234567890\n", 12);
-        if ( HAL_OK == uart_send_all_channel(ctx, (uint8_t*)ctx->lowlevel_tx_buffer, 12) )
+        int n = ring_buffer_dequeue_arr(&ctx->send_ringbuf, ctx->lowlevel_tx_buffer, UART_RX_BUFF_SIZE);
+
+        int wrong = 0; ;
+        for (int k = 0; k < n ; k++ )
+        {
+        	if ( (unsigned char)(ctx->lowlevel_tx_buffer[k]) != 0xff )
+        	{
+        		wrong = 1;
+        		break;
+        	}
+        }
+//        if ( wrong != 0 ) {
+//        	n = 4;
+//        	memcpy(ctx->lowlevel_tx_buffer, "AAAA", n);
+//        } else {
+//        	n = 4;
+//        	memcpy(ctx->lowlevel_tx_buffer, "5555", n);
+//        }
+        //n = 10;
+        if ( HAL_OK == uart_send_all_channel(ctx, (uint8_t*)ctx->lowlevel_tx_buffer, n) )
 		{
-			PT_WAIT_UNTIL(pt, ctx->tx_completed);
-			timer_set(&ctx->test_timer, 100);
-			PT_WAIT_UNTIL(pt, timer_expired(&ctx->test_timer));
+        	PT_WAIT_UNTIL( &ctx->pt_send, ctx->tx_completed);
+//			PT_WAIT_UNTIL(pt, ctx->tx_completed);
+//			timer_set(&ctx->test_timer, 100);
+//			PT_WAIT_UNTIL(pt, timer_expired(&ctx->test_timer));
 		} else {
-			PT_YIELD(pt);
+			PT_YIELD(&ctx->pt_send);
 		}
 
 #endif
@@ -592,7 +612,7 @@ static char uart_send_serial_thread(uart_contex_t *ctx)
 static char uart_recv_serial_thread(uart_contex_t *ctx)
 {
     //static struct pt *pt;
-
+	static int test = 0 ;
 
     PT_BEGIN(&ctx->pt_recv);
     while(1)
@@ -609,19 +629,31 @@ static char uart_recv_serial_thread(uart_contex_t *ctx)
 		if ( ctx->index == (UART_NUM-1) ) {
 			//index==4 是从上位机读的串口
 #if 1
+			for(int n = 0 ; n<1000;n++)
+			{
+				test++;
+			}
 			for(int n = 0;n < (UART_NUM-1) && k > 0 ;n++)
 			{
 				ring_buffer_queue_arr(&(gl_all_uarts[n].send_ringbuf), data, k);
 			}
 #else
-			//test: 测试内容 uart5 收到数据，然后转发给 uart0
+			//test: 测试内容 uart5 收到全ff 的数据，才转发
 			if  (k>0 ){
-				//while(1);
+				int wrong = 0;
 
-				//ring_buffer_queue_arr(&(gl_all_uarts[0].send_ringbuf), data, k);
-//				memcpy(data, "test1", 5);
-//				k = 5;
-				ring_buffer_queue_arr(&(gl_all_uarts[4].send_ringbuf), data, k);
+				for ( int i = 0; i < k;i++ ) {
+					if ( ((unsigned char)(data[i])) != 0xff) {
+						wrong = 1 ;
+						break;
+					}
+				}
+				if ( !wrong ) {
+					for(int n = 0;n < (UART_NUM-1) && k > 0 ;n++)
+					{
+						ring_buffer_queue_arr(&(gl_all_uarts[n].send_ringbuf), data, k);
+					}
+				}
 			}
 #endif
 		} else {
