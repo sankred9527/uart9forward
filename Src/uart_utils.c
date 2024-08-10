@@ -6,11 +6,16 @@
 #include <stdarg.h>
 
 
+#define RTS3_GPIO_Port GPIOB
+#define RTS3_Pin GPIO_PIN_14
+#define RTS2_GPIO_Port GPIOD
+#define RTS2_Pin GPIO_PIN_4
 
 uart_contex_t gl_all_uarts[5];
 
 #define UART_NUM (5)
 #define UART_UP (gl_all_uarts+(UART_NUM-1))
+#define UART_TT (gl_all_uarts+1)
 
 //#define MAX_UART_CHANNEL (2)
 static int gl_current_channel = 0;
@@ -74,6 +79,7 @@ static void my_MspDeInitCallback(UART_HandleTypeDef *huart)
     // if ( rts_pin > 0 )
     //     HAL_GPIO_DeInit(rts_group, rts_pin);
 
+    ring_buffer_queue_arr(&UART_UP->send_ringbuf, "deinit\r\n", 8);
     /* USART interrupt DeInit */    
     HAL_NVIC_DisableIRQ(ucontext->irqt);
 }
@@ -149,11 +155,11 @@ static void my_MspInitCallback(UART_HandleTypeDef *huart)
 				break;
 			case 1:
 				//???
-				__HAL_AFIO_REMAP_USART2_DISABLE();
+				__HAL_AFIO_REMAP_USART2_ENABLE();
 				break;
 			case 2:
 				//???
-				__HAL_AFIO_REMAP_USART3_ENABLE();
+				//__HAL_AFIO_REMAP_USART3_ENABLE();
 				break;
 			}
         }
@@ -536,8 +542,10 @@ void uart_thread(void)
 
 		uart_led_deal(UART_UP, 0, true);
 		ring_buffer_queue_arr(&UART_UP->send_ringbuf, "start", 5);
+        
 		flag = 1;
 	}
+    //uart_recv_serial_thread(UART_UP);
 
     for (int n = 0; n < UART_NUM; n++)
     {
@@ -545,7 +553,7 @@ void uart_thread(void)
         uart_recv_serial_thread(gl_all_uarts+n);
         uart_send_serial_thread(gl_all_uarts+n);
     }
-//    uart_recv_serial_thread(UART_UP);
+    //uart_recv_serial_thread(UART_UP);
 //    uart_send_serial_thread(UART_UP);
 //
 //    uart_send_serial_thread(gl_all_uarts+0);
@@ -569,7 +577,7 @@ static char uart_send_serial_thread(uart_contex_t *ctx)
         	PT_WAIT_UNTIL( &ctx->pt_send, ctx->tx_completed);
         } else {
         	//while(1);
-
+            
         	PT_YIELD(&ctx->pt_send);
         }
 #else
